@@ -1211,8 +1211,9 @@ bool TebOptimalPlanner::isTrajectoryFeasible(base_local_planner::CostmapModel* c
 {
   if (look_ahead_idx < 0 || look_ahead_idx >= teb().sizePoses())
     look_ahead_idx = teb().sizePoses() - 1;
-  
-  for (int i=0; i <= look_ahead_idx; ++i)
+
+  // Note by Tony: allow move from obstacles.
+  for (int i=1; i <= look_ahead_idx; ++i)
   {           
     if ( costmap_model->footprintCost(teb().Pose(i).x(), teb().Pose(i).y(), teb().Pose(i).theta(), footprint_spec, inscribed_radius, circumscribed_radius) == -1 )
     {
