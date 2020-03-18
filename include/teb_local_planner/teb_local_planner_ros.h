@@ -447,7 +447,8 @@ private:
   // flags
   bool initialized_; //!< Keeps track about the correct initialization of this class
 
-  int cur_global_plan_index_;
+  int first_prune_g_plan_index_;        //! the first pose index to be pruned on the global path
+  int search_start_g_plan_index_;        //! the index of global plan poses for searching the closest point with the robot pose
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

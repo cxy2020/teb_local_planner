@@ -69,7 +69,7 @@ namespace teb_local_planner
 TebLocalPlannerROS::TebLocalPlannerROS() : costmap_ros_(NULL), tf_(NULL), costmap_model_(NULL),
                                            costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),
                                            dynamic_recfg_(NULL), custom_via_points_active_(false), goal_reached_(false), no_infeasible_plans_(0),
-                                           last_preferred_rotdir_(RotType::none), initialized_(false), cur_global_plan_index_(0)
+                                           last_preferred_rotdir_(RotType::none), initialized_(false), first_prune_g_plan_index_(0), search_start_g_plan_index_(0)
 {
 }
 
@@ -204,7 +204,8 @@ bool TebLocalPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& 
   // store the global plan
   global_plan_.clear();
   global_plan_ = orig_global_plan;
-  cur_global_plan_index_ = 0;
+  first_prune_g_plan_index_ = 0;
+  search_start_g_plan_index_ = 0;
 
   // we do not clear the local planner here, since setPlan is called frequently whenever the global planner updates the plan.
   // the local planner checks whether it is required to reinitialize the trajectory or not within each velocity computation step.  
@@ -639,11 +640,12 @@ bool TebLocalPlannerROS::pruneGlobalPlan(const tf2_ros::Buffer& tf, const geomet
 
   std::vector<geometry_msgs::PoseStamped>::const_iterator iter = global_plan.begin();
   int i = 0;
-  while(++i < cur_global_plan_index_) {
+  while(++i < first_prune_g_plan_index_) {
     ++iter;
   }
   global_plan.erase(global_plan.begin(), iter);
-  cur_global_plan_index_ = 0;
+  search_start_g_plan_index_ -= first_prune_g_plan_index_;
+  first_prune_g_plan_index_ = 0;
 
   return true;
 }
@@ -689,10 +691,28 @@ TebLocalPlannerROS::TransformResult TebLocalPlannerROS::transformGlobalPlan(cons
     double move_dir_x, move_dir_y = 0.0;
     double dir_x1, dir_y1 = 0.0;
     double product1;
-    int i = cur_global_plan_index_;
+    int i = search_start_g_plan_index_;
+    ros::NodeHandle nh_move_base("~");
+    const double kMinPrunestep = nh_move_base.param("min_prune_step", 0.05);
     while(i < max_plan_index) {
-        move_dir_x = global_plan[i + 1].pose.position.x - global_plan[i].pose.position.x;
-        move_dir_y = global_plan[i + 1].pose.position.y - global_plan[i].pose.position.y;
+        move_dir_x = global_plan[i + 1].pose.position.x - global_plan[first_prune_g_plan_index_].pose.position.x;
+        move_dir_y = global_plan[i + 1].pose.position.y - global_plan[first_prune_g_plan_index_].pose.position.y;
+
+        if(abs(move_dir_x) == 0.0 && abs(move_dir_y) == 0.0) {
+            ++i;
+            continue;
+        }
+        else {
+            while(abs(move_dir_x) > kMinPrunestep || abs(move_dir_y) > kMinPrunestep) {
+                if(++first_prune_g_plan_index_ > i) {
+                    --first_prune_g_plan_index_;
+                    break;
+                }
+                move_dir_x = global_plan[i + 1].pose.position.x - global_plan[first_prune_g_plan_index_].pose.position.x;
+                move_dir_y = global_plan[i + 1].pose.position.y - global_plan[first_prune_g_plan_index_].pose.position.y;
+            }
+        }
+
         dir_x1 = global_plan[i].pose.position.x - robot_pose.pose.position.x;
         dir_y1 = global_plan[i].pose.position.y - robot_pose.pose.position.y;
 
@@ -702,7 +722,7 @@ TebLocalPlannerROS::TransformResult TebLocalPlannerROS::transformGlobalPlan(cons
             continue;
         }
         else {
-            cur_global_plan_index_ = i;
+            search_start_g_plan_index_ = i;
             break;
         }
     }
