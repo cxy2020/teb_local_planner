@@ -69,7 +69,7 @@ namespace teb_local_planner
 TebLocalPlannerROS::TebLocalPlannerROS() : costmap_ros_(NULL), tf_(NULL), costmap_model_(NULL),
                                            costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),
                                            dynamic_recfg_(NULL), custom_via_points_active_(false), goal_reached_(false), no_infeasible_plans_(0),
-                                           last_preferred_rotdir_(RotType::none), initialized_(false), first_prune_g_plan_index_(0), search_start_g_plan_index_(0)
+                                           last_preferred_rotdir_(RotType::none), initialized_(false)
 {
 }
 
@@ -204,15 +204,13 @@ bool TebLocalPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& 
   // store the global plan
   global_plan_.clear();
   global_plan_ = orig_global_plan;
-  first_prune_g_plan_index_ = 0;
-  search_start_g_plan_index_ = 0;
 
   // we do not clear the local planner here, since setPlan is called frequently whenever the global planner updates the plan.
   // the local planner checks whether it is required to reinitialize the trajectory or not within each velocity computation step.  
             
   // reset goal_reached_ flag
   goal_reached_ = false;
-
+  
   return true;
 }
 
@@ -637,16 +635,42 @@ bool TebLocalPlannerROS::pruneGlobalPlan(const tf2_ros::Buffer& tf, const geomet
 {
   if (global_plan.empty())
     return true;
-
-  std::vector<geometry_msgs::PoseStamped>::const_iterator iter = global_plan.begin();
-  int i = 0;
-  while(++i < first_prune_g_plan_index_) {
-    ++iter;
+  
+  try
+  {
+    // transform robot pose into the plan frame (we do not wait here, since pruning not crucial, if missed a few times)
+    geometry_msgs::TransformStamped global_to_plan_transform = tf.lookupTransform(global_plan.front().header.frame_id, global_pose.header.frame_id, ros::Time(0));
+    geometry_msgs::PoseStamped robot;
+    tf2::doTransform(global_pose, robot, global_to_plan_transform);
+    
+    double dist_thresh_sq = dist_behind_robot*dist_behind_robot;
+    
+    // iterate plan until a pose close the robot is found
+    std::vector<geometry_msgs::PoseStamped>::iterator it = global_plan.begin();
+    std::vector<geometry_msgs::PoseStamped>::iterator erase_end = it;
+    while (it != global_plan.end())
+    {
+      double dx = robot.pose.position.x - it->pose.position.x;
+      double dy = robot.pose.position.y - it->pose.position.y;
+      double dist_sq = dx * dx + dy * dy;
+      if (dist_sq < dist_thresh_sq)
+      {
+         erase_end = it;
+         break;
+      }
+      ++it;
+    }
+    if (erase_end == global_plan.end())
+      return false;
+    
+    if (erase_end != global_plan.begin())
+      global_plan.erase(global_plan.begin(), erase_end);
   }
-  global_plan.erase(global_plan.begin(), iter);
-  search_start_g_plan_index_ -= first_prune_g_plan_index_;
-  first_prune_g_plan_index_ = 0;
-
+  catch (const tf::TransformException& ex)
+  {
+    ROS_DEBUG("Cannot prune path since no transform is available: %s\n", ex.what());
+    return false;
+  }
   return true;
 }
       
@@ -686,59 +710,35 @@ TebLocalPlannerROS::TransformResult TebLocalPlannerROS::transformGlobalPlan(cons
                            // located on the border of the local costmap
     
 
-    //Find the closest point ont the plan that is not reached yet
-    const int max_plan_index = global_plan.size() - 1;
-    double move_dir_x, move_dir_y = 0.0;
-    double dir_x1, dir_y1 = 0.0;
-    double product1;
-    int i = search_start_g_plan_index_;
-    ros::NodeHandle nh_move_base("~");
-    const double kMinPrunestep = nh_move_base.param("min_prune_step", 0.05);
-    while(i < max_plan_index) {
-        move_dir_x = global_plan[i + 1].pose.position.x - global_plan[first_prune_g_plan_index_].pose.position.x;
-        move_dir_y = global_plan[i + 1].pose.position.y - global_plan[first_prune_g_plan_index_].pose.position.y;
+    int i = 0;
+    double sq_dist_threshold = dist_threshold * dist_threshold;
+    double sq_dist = 1e10;
+    
+    //we need to loop to a point on the plan that is within a certain distance of the robot
+    for(int j=0; j < (int)global_plan.size(); ++j)
+    {
+      double x_diff = robot_pose.pose.position.x - global_plan[j].pose.position.x;
+      double y_diff = robot_pose.pose.position.y - global_plan[j].pose.position.y;
+      double new_sq_dist = x_diff * x_diff + y_diff * y_diff;
+      if (new_sq_dist > sq_dist_threshold)
+        break;  // force stop if we have reached the costmap border
 
-        if(abs(move_dir_x) == 0.0 && abs(move_dir_y) == 0.0) {
-            ++i;
-            continue;
-        }
-        else {
-            while(abs(move_dir_x) > kMinPrunestep || abs(move_dir_y) > kMinPrunestep) {
-                if(++first_prune_g_plan_index_ > i) {
-                    --first_prune_g_plan_index_;
-                    break;
-                }
-                move_dir_x = global_plan[i + 1].pose.position.x - global_plan[first_prune_g_plan_index_].pose.position.x;
-                move_dir_y = global_plan[i + 1].pose.position.y - global_plan[first_prune_g_plan_index_].pose.position.y;
-            }
-        }
-
-        dir_x1 = global_plan[i].pose.position.x - robot_pose.pose.position.x;
-        dir_y1 = global_plan[i].pose.position.y - robot_pose.pose.position.y;
-
-        product1 = dir_x1 * move_dir_x + dir_y1 * move_dir_y;
-        if(product1 < 0.0) {
-            ++i;
-            continue;
-        }
-        else {
-            search_start_g_plan_index_ = i;
-            break;
-        }
+      if (new_sq_dist < sq_dist) // find closest distance
+      {
+        sq_dist = new_sq_dist;
+        i = j;
+      }
     }
     
     geometry_msgs::PoseStamped newer_pose;
     
     double plan_length = 0; // check cumulative Euclidean distance along the plan
-
-    //whether find a point on the global plan that conflicts with obstacles
+    unsigned int x0 = 0;
+    unsigned int y0 = 0;
+    
     //now we'll transform until points are outside of our distance threshold
-    unsigned int x0, y0;
-    while(plan_length <= max_plan_length || max_plan_length<=0)
+    while(i < (int)global_plan.size() && sq_dist <= sq_dist_threshold && (max_plan_length<=0 || plan_length <= max_plan_length))
     {
-      if(i > max_plan_index) {
-        break;
-      }
       const geometry_msgs::PoseStamped& pose = global_plan[i];
       tf2::doTransform(pose, newer_pose, plan_to_global_transform);
       if(!is_find_obstacle) {
@@ -751,13 +751,17 @@ TebLocalPlannerROS::TransformResult TebLocalPlannerROS::transformGlobalPlan(cons
 
       transformed_plan.push_back(newer_pose);
 
+      double x_diff = robot_pose.pose.position.x - global_plan[i].pose.position.x;
+      double y_diff = robot_pose.pose.position.y - global_plan[i].pose.position.y;
+      sq_dist = x_diff * x_diff + y_diff * y_diff;
+      
       // caclulate distance to previous pose
       if (i>0 && max_plan_length>0)
         plan_length += distance_points2d(global_plan[i-1].pose.position, global_plan[i].pose.position);
 
       ++i;
     }
-
+        
     // if we are really close to the goal (<sq_dist_threshold) and the goal is not yet reached (e.g. orientation error >>0)
     // the resulting transformed plan can be empty. In that case we explicitly inject the global goal.
     if (transformed_plan.empty())
