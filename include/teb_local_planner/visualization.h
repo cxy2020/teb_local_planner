@@ -112,6 +112,12 @@ public:
    * @param global_plan Pose array describing the global plan
    */
   void publishGlobalPlan(const std::vector<geometry_msgs::PoseStamped>& global_plan) const;
+
+  /**
+   * @brief Publish the initial global plan to the ros topic \e ../../global_plan
+   * @param global_plan Pose array describing the global plan
+   */
+  void publishOrigGlobalPlan(const std::vector<geometry_msgs::PoseStamped>& global_plan) const;
   
   /**
    * @brief Publish a given local plan to the ros topic \e ../../local_plan
@@ -255,6 +261,7 @@ protected:
   ros::Publisher teb_poses_pub_; //!< Publisher for the trajectory pose sequence
   ros::Publisher teb_marker_pub_; //!< Publisher for visualization markers
   ros::Publisher feedback_pub_; //!< Publisher for the feedback message for analysis and debug purposes
+  ros::Publisher orig_global_plan_pub_; //!< Publisher for the global plan(not pruned)
   
   const TebConfig* cfg_; //!< Config class that stores and manages all related parameters
   

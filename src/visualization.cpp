@@ -66,6 +66,7 @@ void TebVisualization::initialize(ros::NodeHandle& nh, const TebConfig& cfg)
   teb_poses_pub_ = nh.advertise<geometry_msgs::PoseArray>("teb_poses", 100);
   teb_marker_pub_ = nh.advertise<visualization_msgs::Marker>("teb_markers", 1000);
   feedback_pub_ = nh.advertise<teb_local_planner::FeedbackMsg>("teb_feedback", 10);  
+  orig_global_plan_pub_ = nh.advertise<nav_msgs::Path>("/move_base_flex/GlobalPlanner/plan", 1);
   
   initialized_ = true; 
 }
@@ -75,7 +76,13 @@ void TebVisualization::initialize(ros::NodeHandle& nh, const TebConfig& cfg)
 void TebVisualization::publishGlobalPlan(const std::vector<geometry_msgs::PoseStamped>& global_plan) const
 {
   if ( printErrorWhenNotInitialized() ) return;
-  base_local_planner::publishPlan(global_plan, global_plan_pub_); 
+  base_local_planner::publishPlan(global_plan, global_plan_pub_);
+}
+
+void TebVisualization::publishOrigGlobalPlan(const std::vector<geometry_msgs::PoseStamped> &global_plan) const
+{
+    if ( printErrorWhenNotInitialized() ) return;
+    base_local_planner::publishPlan(global_plan, orig_global_plan_pub_);
 }
 
 void TebVisualization::publishLocalPlan(const std::vector<geometry_msgs::PoseStamped>& local_plan) const

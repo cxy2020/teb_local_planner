@@ -212,6 +212,7 @@ bool TebLocalPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& 
   // reset goal_reached_ flag
   goal_reached_ = false;
   is_global_planning_ = false;
+  visualization_->publishOrigGlobalPlan(orig_global_plan);
 
   return true;
 }
