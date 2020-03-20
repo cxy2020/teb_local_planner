@@ -139,8 +139,19 @@ bool HomotopyClassPlanner::getVelocityCommand(double& vx, double& vy, double& om
   return best_teb->getVelocityCommand(vx, vy, omega, look_ahead_poses);
 }
 
-
-
+int HomotopyClassPlanner::GetFirstMappedGlobalPoint(const std::vector<geometry_msgs::PoseStamped>& global_path,
+                                                    bool is_moving_forward,
+                                                    double max_lookahead_length) const
+{
+    //TODO:
+    ROS_ERROR("HomotopyClassPlanner::GetFirstMappedGlobalPoint is not implemented!");
+    const TimedElasticBand& teb = best_teb_.get()->teb();
+    if(teb.sizePoses() == 0) {
+        return 0;
+    }
+    GetFirstMappedPoint(global_path, teb.Pose(0).x(), teb.Pose(0).y(), teb.Pose(0).theta(), is_moving_forward, max_lookahead_length);
+    return 0;
+}
 
 void HomotopyClassPlanner::visualize()
 {

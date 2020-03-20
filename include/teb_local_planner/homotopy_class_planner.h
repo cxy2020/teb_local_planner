@@ -199,6 +199,18 @@ public:
   virtual bool getVelocityCommand(double& vx, double& vy, double& omega, int look_ahead_poses) const;
 
   /**
+   * @brief Iterate from the first point on the global path, and map it to the local path, find the first point on the global path
+   *        that is mapped to the first local path point.
+   * @param global_path the global path to be mapped
+   * @param is_moving_forward indicates whether the robot is moving forward or backward
+   * @param max_lookahead_length max lookahead length when checking the global length
+   * @return the index of the mapped global path point
+   */
+  virtual int GetFirstMappedGlobalPoint(const std::vector<geometry_msgs::PoseStamped>& global_path,
+                                        bool is_moving_forward,
+                                        double max_lookahead_length) const;
+
+  /**
    * @brief Access current best trajectory candidate (that relates to the "best" homotopy class).
    *
    * If no trajectory is available, the pointer will be empty.

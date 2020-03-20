@@ -185,13 +185,42 @@ public:
    */
   virtual void computeCurrentCost(std::vector<double>& cost, double obst_cost_scale=1.0, bool alternative_time_cost=false)
   {
-  }      
-                
+  }
+
+  /**
+   * @brief Iterate from the first point on the global path, and map it to the local path, find the first point on the global path
+   *        that is mapped to the first local path point.
+   * @param global_path the global path to be mapped
+   * @param is_moving_forward indicates whether the robot is moving forward or backward
+   * @param max_lookahead_length max lookahead length when checking the global length
+   * @return the index of the mapped global path point
+   */
+  virtual int GetFirstMappedGlobalPoint(const std::vector<geometry_msgs::PoseStamped>& global_path,
+                                        bool is_moving_forward,
+                                        double max_lookahead_length) const = 0;
+
+protected:
+  /**
+   * @brief Iterate from the first point on the global path, and map it to the local path, find the first point on the global path
+   *        that is mapped to the first local path point.
+   * @param global_path the global path to be mapped
+   * @param x x coordinate of the mapping point
+   * @param y y coordinate of the mapping point
+   * @param theta the move direction of the mapping point
+   * @param is_moving_forward indicates whether the robot is moving forward or backward
+   * @param max_lookahead_length max lookahead length when checking the global length
+   * @return the index of the mapped global path point
+   */
+  int GetFirstMappedPoint(const std::vector<geometry_msgs::PoseStamped>& global_path,
+                                double x,
+                                double y,
+                                double theta,
+                                bool is_moving_forward,
+                                double max_lookahead_length) const;
 };
 
 //! Abbrev. for shared instances of PlannerInterface or it's subclasses 
 typedef boost::shared_ptr<PlannerInterface> PlannerInterfacePtr;
-
 
 } // namespace teb_local_planner
 

@@ -447,6 +447,9 @@ private:
   // flags
   bool initialized_; //!< Keeps track about the correct initialization of this class
 
+  int first_prune_g_plan_index_;        //! the first pose index to be pruned on the global path
+  bool is_global_planning_;
+
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
