@@ -1130,10 +1130,7 @@ int TebOptimalPlanner::GetFirstMappedGlobalPoint(const std::vector<geometry_msgs
                                                  bool is_moving_forward,
                                                  double max_lookahead_length) const
 {
-    if(teb_.sizePoses() == 0) {
-        return 0;
-    }
-    return GetFirstMappedPoint(global_path, teb_.Pose(0).x(), teb_.Pose(0).y(), teb_.Pose(0).theta(), is_moving_forward, max_lookahead_length);
+    return GetFirstMappedPoint(global_path, teb_, is_moving_forward, max_lookahead_length);
 }
 
 void TebOptimalPlanner::getVelocityProfile(std::vector<geometry_msgs::Twist>& velocity_profile) const

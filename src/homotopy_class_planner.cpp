@@ -143,14 +143,8 @@ int HomotopyClassPlanner::GetFirstMappedGlobalPoint(const std::vector<geometry_m
                                                     bool is_moving_forward,
                                                     double max_lookahead_length) const
 {
-    //TODO:
-    ROS_ERROR("HomotopyClassPlanner::GetFirstMappedGlobalPoint is not implemented!");
     const TimedElasticBand& teb = best_teb_.get()->teb();
-    if(teb.sizePoses() == 0) {
-        return 0;
-    }
-    GetFirstMappedPoint(global_path, teb.Pose(0).x(), teb.Pose(0).y(), teb.Pose(0).theta(), is_moving_forward, max_lookahead_length);
-    return 0;
+    return GetFirstMappedPoint(global_path, teb, is_moving_forward, max_lookahead_length);
 }
 
 void HomotopyClassPlanner::visualize()

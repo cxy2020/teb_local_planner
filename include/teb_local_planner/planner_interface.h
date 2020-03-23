@@ -58,7 +58,7 @@
 namespace teb_local_planner
 {
 
-
+class TimedElasticBand;
 /**
  * @class PlannerInterface
  * @brief This abstract class defines an interface for local planners
@@ -212,11 +212,9 @@ protected:
    * @return the index of the mapped global path point
    */
   int GetFirstMappedPoint(const std::vector<geometry_msgs::PoseStamped>& global_path,
-                                double x,
-                                double y,
-                                double theta,
-                                bool is_moving_forward,
-                                double max_lookahead_length) const;
+                          const TimedElasticBand& teb,
+                          bool is_moving_forward,
+                          double max_lookahead_length) const;
 };
 
 //! Abbrev. for shared instances of PlannerInterface or it's subclasses 

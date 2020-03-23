@@ -1,9 +1,56 @@
 #include "teb_local_planner/planner_interface.h"
+#include "teb_local_planner/timed_elastic_band.h"
 
 namespace teb_local_planner {
 
-int PlannerInterface::GetFirstMappedPoint(const std::vector<geometry_msgs::PoseStamped> &global_path, double x, double y, double theta, bool is_moving_forward, double max_lookahead_length) const
+int PlannerInterface::GetFirstMappedPoint(const std::vector<geometry_msgs::PoseStamped>& global_path,
+                                          const TimedElasticBand& teb,
+                                          bool is_moving_forward,
+                                          double max_lookahead_length) const
 {
+    if(teb.sizePoses() == 0) {
+        return 0;
+    }
+
+    double x = teb.Pose(0).x();
+    double y = teb.Pose(0).y();
+    double theta = teb.Pose(0).theta();
+
+    int teb_pose_size = teb.sizePoses();
+    int teb_index = 0;
+    double d_teb_length = 0.0;
+    double d_teb_theta = 0.0;
+    double max_d_teb_length = 0.0;
+    double max_d_teb_theta = 0.0;
+    double teb_ratio = 0.0;
+    bool is_rotating = false;
+    //If the curvature is big, make lookahead length little
+    while(++teb_index < teb_pose_size) {
+        d_teb_length = abs(teb.Pose(teb_index).x() - x) + abs(teb.Pose(teb_index).y() - y);
+        d_teb_theta = abs(teb.Pose(teb_index).theta() - theta);
+        if(max_d_teb_length < d_teb_length) {
+            max_d_teb_length = d_teb_length;
+        }
+        if(max_d_teb_theta < d_teb_theta) {
+            max_d_teb_theta = d_teb_theta;
+        }
+
+        if(max_d_teb_length <= 0.0) {
+            max_lookahead_length = 0.0;
+            is_rotating = true;
+            break;
+        }
+        teb_ratio = max_d_teb_theta / max_d_teb_length;
+        if(teb_ratio > 10.0) {
+            max_lookahead_length = max_d_teb_length;
+            is_rotating = true;
+            break;
+        }
+        if(teb_ratio < 1.0) {
+            break;
+        }
+    }
+
     int i = 0;
     double sin_theta = sin(theta);
     double cos_theta = cos(theta);
@@ -24,6 +71,7 @@ int PlannerInterface::GetFirstMappedPoint(const std::vector<geometry_msgs::PoseS
     bool is_exist_farther_g_point = false;
     int farther_g_point_index = 0;
     int last_check_index = 0;
+    double g_length = 0.0;
     while(i < g_path_size) {
         dx = x - global_path[i].pose.position.x;
         dy = y - global_path[i].pose.position.y;
@@ -39,6 +87,14 @@ int PlannerInterface::GetFirstMappedPoint(const std::vector<geometry_msgs::PoseS
             //the first point on the teb poses, it is passed by already and can be deleted
             g_dir_x = global_path[i + 1].pose.position.x - global_path[i].pose.position.x;
             g_dir_y = global_path[i + 1].pose.position.y - global_path[i].pose.position.y;
+
+            //when the robot is rotating, only check the global length in max_lookahead_length range
+            if(is_rotating) {
+                g_length += abs(g_dir_x) + abs(g_dir_y);
+                if(g_length > max_lookahead_length) {
+                    break;
+                }
+            }
             product = g_dir_x * cos_theta + g_dir_y * sin_theta;
             if(product >= 0.0) {
                 ++i;

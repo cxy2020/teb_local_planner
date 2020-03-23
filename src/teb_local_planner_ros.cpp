@@ -69,7 +69,7 @@ namespace teb_local_planner
 TebLocalPlannerROS::TebLocalPlannerROS() : costmap_ros_(NULL), tf_(NULL), costmap_model_(NULL),
                                            costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),
                                            dynamic_recfg_(NULL), custom_via_points_active_(false), goal_reached_(false), no_infeasible_plans_(0),
-                                           last_preferred_rotdir_(RotType::none), initialized_(false), first_prune_g_plan_index_(0), is_global_planning_(false)
+                                           last_preferred_rotdir_(RotType::none), initialized_(false), first_prune_g_plan_index_(0)
 {
 }
 
@@ -211,7 +211,6 @@ bool TebLocalPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& 
             
   // reset goal_reached_ flag
   goal_reached_ = false;
-  is_global_planning_ = false;
   visualization_->publishOrigGlobalPlan(orig_global_plan);
 
   return true;
@@ -277,6 +276,7 @@ uint32_t TebLocalPlannerROS::computeVelocityCommands(const geometry_msgs::PoseSt
   }
   uint32_t exe_path_result = mbf_msgs::ExePathResult::SUCCESS;
   if(transform_result == TransformResult::TRANS_NEED_REPLAN_GLOBAL_PATH) {
+      ROS_WARN("Obstacle found on the global path and asked for replanning!");
       exe_path_result = mbf_msgs::ExePathResult::NEED_REPLAN_GLOBAL_PATH;
   }
 
@@ -387,8 +387,7 @@ uint32_t TebLocalPlannerROS::computeVelocityCommands(const geometry_msgs::PoseSt
     ++no_infeasible_plans_; // increase number of infeasible solutions in a row
     time_last_infeasible_plan_ = ros::Time::now();
     last_cmd_ = cmd_vel.twist;
-    message = "teb_local_planner trajectory is not feasible";
-    return mbf_msgs::ExePathResult::NO_VALID_CMD;
+    return mbf_msgs::ExePathResult::LOCAL_TRAJ_NOT_FEASIBLE;
   }
 
   // Get the velocity command for this sampling interval
@@ -661,7 +660,7 @@ TebLocalPlannerROS::TransformResult TebLocalPlannerROS::transformGlobalPlan(cons
 
   transformed_plan.clear();
 
-  bool is_find_obstacle = is_global_planning_;
+  bool is_find_obstacle = false;
   try 
   {
     if (global_plan.empty())
@@ -760,8 +759,7 @@ TebLocalPlannerROS::TransformResult TebLocalPlannerROS::transformGlobalPlan(cons
     return TRANS_FAILURE;
   }
 
-  if(is_find_obstacle && (!is_global_planning_)) {
-      is_global_planning_ = true;
+  if(is_find_obstacle) {
       return TRANS_NEED_REPLAN_GLOBAL_PATH;
   }
   else {
