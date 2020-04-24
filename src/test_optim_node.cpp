@@ -171,7 +171,8 @@ void CB_mainCycle(const ros::TimerEvent& e)
 // Visualization loop
 void CB_publishCycle(const ros::TimerEvent& e)
 {
-  planner->visualize();
+  nav_msgs::Path local_path;
+  planner->visualize(local_path);
   visual->publishObstacles(obst_vector);
   visual->publishViaPoints(via_points);
 }

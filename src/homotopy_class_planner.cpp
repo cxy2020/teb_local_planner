@@ -142,7 +142,7 @@ bool HomotopyClassPlanner::getVelocityCommand(double& vx, double& vy, double& om
 
 
 
-void HomotopyClassPlanner::visualize()
+void HomotopyClassPlanner::visualize(nav_msgs::Path& local_path)
 {
   if (visualization_)
   {
@@ -157,7 +157,7 @@ void HomotopyClassPlanner::visualize()
     TebOptimalPlannerConstPtr best_teb = bestTeb();
     if (best_teb)
     {
-      visualization_->publishLocalPlanAndPoses(best_teb->teb());
+      visualization_->publishLocalPlanAndPoses(best_teb->teb(), local_path);
 
       if (best_teb->teb().sizePoses() > 0) //TODO maybe store current pose (start) within plan method as class field.
         visualization_->publishRobotFootprintModel(best_teb->teb().Pose(0), *robot_model_);

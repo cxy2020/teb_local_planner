@@ -35,6 +35,7 @@
  *
  * Author: Christoph Rösmann
  *********************************************************************/
+#include <cstdlib>
 
 #include <teb_local_planner/teb_local_planner_ros.h>
 
@@ -57,6 +58,8 @@
 #include "g2o/solvers/csparse/linear_solver_csparse.h"
 #include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 
+#include "path_following/path_following_ros.h"
+#include "path_following/FollowPath.h"
 
 // register this planner both as a BaseLocalPlanner and as a MBF's CostmapController plugin
 PLUGINLIB_EXPORT_CLASS(teb_local_planner::TebLocalPlannerROS, nav_core::BaseLocalPlanner)
@@ -69,7 +72,8 @@ namespace teb_local_planner
 TebLocalPlannerROS::TebLocalPlannerROS() : costmap_ros_(NULL), tf_(NULL), costmap_model_(NULL),
                                            costmap_converter_loader_("costmap_converter", "costmap_converter::BaseCostmapToPolygons"),
                                            dynamic_recfg_(NULL), custom_via_points_active_(false), goal_reached_(false), no_infeasible_plans_(0),
-                                           last_preferred_rotdir_(RotType::none), initialized_(false)
+                                           last_preferred_rotdir_(RotType::none), initialized_(false),
+                                           nh_("~"), path_follower_(nullptr)
 {
 }
 
@@ -178,6 +182,12 @@ void TebLocalPlannerROS::initialize(std::string name, tf2_ros::Buffer* tf, costm
     double controller_frequency = 5;
     nh_move_base.param("controller_frequency", controller_frequency, controller_frequency);
     failure_detector_.setBufferLength(std::round(cfg_.recovery.oscillation_filter_duration*controller_frequency));
+
+    path_follower_ = boost::make_shared<rock::path_following::PathFollowingRos>(costmap_ros_);
+    path_follower_->Initialize();
+    path_follower_->start();
+
+    follow_path_client_ = nh_.serviceClient<path_following::FollowPath>("/path_following/follow_path");
     
     // set initialized flag
     initialized_ = true;
@@ -430,11 +440,21 @@ uint32_t TebLocalPlannerROS::computeVelocityCommands(const geometry_msgs::PoseSt
   // store last command (for recovery analysis etc.)
   last_cmd_ = cmd_vel.twist;
   
-  // Now visualize everything    
-  planner_->visualize();
+  // Now visualize everything
+  nav_msgs::Path local_path;
+  planner_->visualize(local_path);
   visualization_->publishObstacles(obstacles_);
   visualization_->publishViaPoints(via_points_);
   visualization_->publishGlobalPlan(global_plan_);
+
+  path_following::FollowPath srv;
+  srv.request.path = local_path;
+  srv.request.cmd_vel = cmd_vel.twist;
+
+  if(!follow_path_client_.call(srv)) {
+    ROS_WARN("Failed to call FollowPathService!");
+  }
+
   return exe_path_result;
 }
 

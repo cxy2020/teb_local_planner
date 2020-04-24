@@ -53,6 +53,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <nav_msgs/Path.h>
 
 
 namespace teb_local_planner
@@ -156,9 +157,7 @@ public:
    * @brief Visualize planner specific stuff.
    * Overwrite this method to provide an interface to perform all planner related visualizations at once.
    */ 
-  virtual void visualize()
-  {
-  }
+  virtual void visualize(nav_msgs::Path& local_path) = 0;
   
   /**
    * @brief Check whether the planned trajectory is feasible or not.

@@ -125,8 +125,9 @@ public:
    * Given a Timed_Elastic_Band instance, publish the local plan to  \e ../../local_plan 
    * and the pose sequence to  \e ../../teb_poses.
    * @param teb const reference to a Timed_Elastic_Band
+   * @param output local path
    */
-  void publishLocalPlanAndPoses(const TimedElasticBand& teb) const;
+  void publishLocalPlanAndPoses(const TimedElasticBand& teb, nav_msgs::Path& local_path) const;
   
   /**
    * @brief Publish the visualization of the robot model

@@ -85,35 +85,35 @@ void TebVisualization::publishLocalPlan(const std::vector<geometry_msgs::PoseSta
   base_local_planner::publishPlan(local_plan, local_plan_pub_); 
 }
 
-void TebVisualization::publishLocalPlanAndPoses(const TimedElasticBand& teb) const
+void TebVisualization::publishLocalPlanAndPoses(const TimedElasticBand& teb,
+                                                nav_msgs::Path& local_path) const
 {
   if ( printErrorWhenNotInitialized() )
     return;
   
     // create path msg
-    nav_msgs::Path teb_path;
-    teb_path.header.frame_id = cfg_->map_frame;
-    teb_path.header.stamp = ros::Time::now();
+    local_path.header.frame_id = cfg_->map_frame;
+    local_path.header.stamp = ros::Time::now();
     
     // create pose_array (along trajectory)
     geometry_msgs::PoseArray teb_poses;
-    teb_poses.header.frame_id = teb_path.header.frame_id;
-    teb_poses.header.stamp = teb_path.header.stamp;
+    teb_poses.header.frame_id = local_path.header.frame_id;
+    teb_poses.header.stamp = local_path.header.stamp;
     
     // fill path msgs with teb configurations
     for (int i=0; i < teb.sizePoses(); i++)
     {
       geometry_msgs::PoseStamped pose;
-      pose.header.frame_id = teb_path.header.frame_id;
-      pose.header.stamp = teb_path.header.stamp;
+      pose.header.frame_id = local_path.header.frame_id;
+      pose.header.stamp = local_path.header.stamp;
       pose.pose.position.x = teb.Pose(i).x();
       pose.pose.position.y = teb.Pose(i).y();
       pose.pose.position.z = cfg_->hcp.visualize_with_time_as_z_axis_scale*teb.getSumOfTimeDiffsUpToIdx(i);
       pose.pose.orientation = tf::createQuaternionMsgFromYaw(teb.Pose(i).theta());
-      teb_path.poses.push_back(pose);
+      local_path.poses.push_back(pose);
       teb_poses.poses.push_back(pose.pose);
     }
-    local_plan_pub_.publish(teb_path);
+    local_plan_pub_.publish(local_path);
     teb_poses_pub_.publish(teb_poses);
 }
 

@@ -332,7 +332,7 @@ public:
    * Make sure to register a TebVisualization instance before using setVisualization() or an overlaoded constructor.
    * @see setVisualization
    */
-  virtual void visualize();
+  virtual void visualize(nav_msgs::Path &local_path);
   
   //@}
   

@@ -80,6 +80,14 @@
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
 
+namespace rock
+{
+namespace path_following
+{
+class PathFollowingRos;
+}
+}
+
 
 namespace teb_local_planner
 {
@@ -446,6 +454,11 @@ private:
     
   // flags
   bool initialized_; //!< Keeps track about the correct initialization of this class
+
+  ros::NodeHandle nh_;
+
+  boost::shared_ptr<rock::path_following::PathFollowingRos> path_follower_;
+  ros::ServiceClient follow_path_client_;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
