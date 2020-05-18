@@ -778,7 +778,7 @@ TebLocalPlannerROS::TransformResult TebLocalPlannerROS::transformGlobalPlan(cons
         continue;
 
       if(costmap_->worldToMap(newer_pose.pose.position.x, newer_pose.pose.position.y, x0, y0)
-              && costmap_model_->pointCost(x0, y0) == -1.0)
+              && costmap_->getCost(x0, y0) > 127)
       {
         is_find_obstacle = true;
       }
