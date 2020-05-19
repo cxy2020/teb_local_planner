@@ -80,6 +80,8 @@
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
 
+#include "task_msgs/CheckObstacleCollision.h"
+
 namespace rock
 {
 namespace path_following
@@ -399,10 +401,18 @@ protected:
   
   
   void configureBackupModes(std::vector<geometry_msgs::PoseStamped>& transformed_plan,  int& goal_idx);
-
-
   
 private:
+  /**
+   * @brief Check on the costmap if there is obstacle on the path in range from start_check_pos to
+   *  end_check_pos. The obstacle is defined as the cost of the point on the path > 127.
+   * @param req input containing path poses, distance, start_check_pos and end_check_pos
+   * @param res output containing if there is obstacle on the path range and the position of the
+   *  closest obstacle.
+   * @return return true if the call succeed; return false otherwise
+   */
+  bool checkObstacleCollision(task_msgs::CheckObstacleCollisionRequest& req,
+                              task_msgs::CheckObstacleCollisionResponse& res);
   // Definition of member variables
 
   // external objects (store weak pointers)
@@ -459,6 +469,7 @@ private:
 
   boost::shared_ptr<rock::path_following::PathFollowingRos> path_follower_;
   ros::ServiceClient follow_path_client_;
+  ros::ServiceServer check_obstacle_collision_service_;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

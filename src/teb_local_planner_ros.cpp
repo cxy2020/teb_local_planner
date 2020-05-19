@@ -188,7 +188,8 @@ void TebLocalPlannerROS::initialize(std::string name, tf2_ros::Buffer* tf, costm
     path_follower_->start();
 
     follow_path_client_ = nh_.serviceClient<path_following::FollowPath>("/path_following/follow_path");
-    
+    check_obstacle_collision_service_ = nh_.advertiseService(
+          "check_obstacle_collision", &TebLocalPlannerROS::checkObstacleCollision, this);
     // set initialized flag
     initialized_ = true;
 
@@ -1001,7 +1002,60 @@ void TebLocalPlannerROS::configureBackupModes(std::vector<geometry_msgs::PoseSta
     }
 
 }
-     
+
+bool TebLocalPlannerROS::checkObstacleCollision(task_msgs::CheckObstacleCollisionRequest &req,
+                                                task_msgs::CheckObstacleCollisionResponse& res)
+{
+  const std::vector<geometry_msgs::PoseStamped>& poses = req.poses;
+  res.is_obstacle_found = false;
+  if (poses.empty())
+    return true;
+
+  const std::vector<double>& pos_list = req.dist_list;
+  std::vector<double>::const_iterator dist_iter = pos_list.begin();
+  std::vector<geometry_msgs::PoseStamped>::const_iterator pose_iter = poses.begin();
+  unsigned int x0 = 0;
+  unsigned int y0 = 0;
+  for (; dist_iter != pos_list.end(); ++dist_iter, ++pose_iter) {
+    if ((*dist_iter) < req.start_check_pos)
+      continue;
+    if ((*dist_iter) > req.end_check_pos)
+      break;
+    if (costmap_->worldToMap((*pose_iter).pose.position.x, (*pose_iter).pose.position.y, x0, y0)
+        && costmap_->getCost(x0, y0) > 127) {
+      res.is_obstacle_found = true;
+      res.obstacle_pos = *dist_iter;
+      break;
+    }
+  }
+
+  if (!res.is_obstacle_found) {
+    return true;
+  }
+
+  //Check if there is free point after the obstacle, and the distance from the free point to next
+  //obstcle collision point < req.free_length
+  double start_free_pos = *dist_iter;
+  for (; dist_iter != pos_list.end(); ++dist_iter, ++pose_iter) {
+    if (costmap_->worldToMap((*pose_iter).pose.position.x, (*pose_iter).pose.position.y, x0, y0)
+        && costmap_->getCost(x0, y0) < 128) {
+      res.is_free_point_after_obstacle_found = true;
+      if (*dist_iter - start_free_pos > req.min_free_length) {
+        res.free_point_pos = *dist_iter;
+        return true;
+      }
+    }
+    else {
+      res.is_free_point_after_obstacle_found = false;
+      start_free_pos = *dist_iter;
+    }
+  }
+
+  if (res.is_free_point_after_obstacle_found) {
+    res.free_point_pos = pos_list.back();
+  }
+  return true;
+}
      
 void TebLocalPlannerROS::customObstacleCB(const costmap_converter::ObstacleArrayMsg::ConstPtr& obst_msg)
 {
