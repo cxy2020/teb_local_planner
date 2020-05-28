@@ -57,7 +57,7 @@
 #include "g2o/solvers/csparse/linear_solver_csparse.h"
 #include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 
-
+#include "costmap_2d/time_recorder.h"
 // register this planner both as a BaseLocalPlanner and as a MBF's CostmapController plugin
 PLUGINLIB_EXPORT_CLASS(teb_local_planner::TebLocalPlannerROS, nav_core::BaseLocalPlanner)
 PLUGINLIB_EXPORT_CLASS(teb_local_planner::TebLocalPlannerROS, mbf_costmap_core::CostmapController)
@@ -230,6 +230,8 @@ uint32_t TebLocalPlannerROS::computeVelocityCommands(const geometry_msgs::PoseSt
                                                      geometry_msgs::TwistStamped &cmd_vel,
                                                      std::string &message)
 {
+  TimeRecorderCaller time_record(L_R30);
+  TimeRecorder* time_rec = TimeRecorder::get_instance();
   // check if plugin initialized
   if(!initialized_)
   {
